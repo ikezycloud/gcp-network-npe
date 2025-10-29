@@ -1,0 +1,64 @@
+name: apply
+
+on:
+  push:
+    branches: [ "npe", "dev", "prod" ]  # fires on merge to these branches                  # safety: also catch "PR closed" events
+
+jobs:
+  apply:
+
+    if: >
+      (github.event_name == 'push')
+      || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    # Derive env/workspace/project from the branch name (npe|dev|prod)
+    env:
+      ENV: ${{ github.ref_name }}                          # npe | dev | prod
+      # Terraform Cloud workspace naming convention
+      TFC_WORKSPACE: gcp-network-${{ github.ref_name }}
+      TFC_HOST: app.terraform.io
+      # Per-environment GCP project IDs (fill dev/prod to your real IDs or secrets)
+      # Option A: hardcode here (quick start)
+      # GCP_PROJECT_ID: ${{ fromJSON('{"npe":"ikezy-network-cloud-npe","dev":"ikezy-network-cloud-dev","prod":"ikezy-network-cloud-prod"}')[github.ref_name] }}
+      # Option B: read from secrets (recommended)
+      GCP_PROJECT_ID: ${{ github.ref_name == 'npe' && secrets.GCP_PROJECT_ID_NPE || github.ref_name == 'dev' && secrets.GCP_PROJECT_ID_DEV || github.ref_name == 'prod' && secrets.GCP_PROJECT_ID_PROD }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure Terraform Cloud credentials
+        run: |
+          mkdir -p ~/.terraform.d
+          cat > ~/.terraform.d/credentials.tfrc.json <<EOF
+          {
+            "credentials": {
+              "${{ env.TFC_HOST }}": {
+                "token": "${{ secrets.TFC_TOKEN }}"
+              }
+            }
+          }
+          EOF
+
+      - name: Authenticate to GCP via OIDC
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Terraform Init (TFC remote backend)
+        env:
+          TF_WORKSPACE: ${{ env.TFC_WORKSPACE }}
+        run: terraform init -input=false
+
+      - name: Terraform Apply
+        env:
+          TF_WORKSPACE: ${{ env.TFC_WORKSPACE }}
+        run: terraform apply -auto-approve -input=false
