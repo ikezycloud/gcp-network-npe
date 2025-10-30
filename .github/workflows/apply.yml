@@ -2,14 +2,10 @@ name: apply
 
 on:
   push:
-    branches: [ "npe", "dev", "prod" ]  # fires on merge to these branches                  # safety: also catch "PR closed" events
+    branches: [ "npe", "dev", "prod" ]  # fires on merge to these branches
 
 jobs:
   apply:
-
-    if: >
-      (github.event_name == 'push')
-      || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
 
     runs-on: ubuntu-latest
     permissions:
@@ -22,12 +18,7 @@ jobs:
       # Terraform Cloud workspace naming convention
       TFC_WORKSPACE: gcp-network-${{ github.ref_name }}
       TFC_HOST: app.terraform.io
-      # Per-environment GCP project IDs (fill dev/prod to your real IDs or secrets)
-      # Option A: hardcode here (quick start)
-      # GCP_PROJECT_ID: ${{ fromJSON('{"npe":"ikezy-network-cloud-npe","dev":"ikezy-network-cloud-dev","prod":"ikezy-network-cloud-prod"}')[github.ref_name] }}
-      # Option B: read from secrets (recommended)
-      GCP_PROJECT_ID: ${{ github.ref_name == 'npe' && secrets.GCP_PROJECT_ID_NPE || github.ref_name == 'dev' && secrets.GCP_PROJECT_ID_DEV || github.ref_name == 'prod' && secrets.GCP_PROJECT_ID_PROD }}
-
+      
     steps:
       - uses: actions/checkout@v4
 
