@@ -3,16 +3,20 @@ terraform {
 
   required_providers {
     google = {
-        source = "hashicorp/google"
-        version = "~> 5.0"
+      source  = "hashicorp/google-beta"
+      version = "~> 5.0"
+    }
+    google-beta = {
+      source  = "hashicorp/google-beta"
+      version = "~> 5.0"
     }
   }
 
   backend "remote" {
     hostname     = "app.terraform.io"
-    organization = "ikezycloud"            # My TFC org
+    organization = "ikezycloud" # My TFC org
     workspaces {
-      name = "gcp-network-npe"             # My TFC Workspace
+      name = "gcp-network-npe" # My TFC Workspace
     }
   }
 }
